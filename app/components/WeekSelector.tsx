@@ -11,6 +11,9 @@ interface WeekSelectorProps {
 }
 
 export default function WeekSelector({ onConfirm }: WeekSelectorProps) {
+  // 1. Keep track of the currently viewed month
+  const [shownDate, setShownDate] = useState(new Date());
+  
   const [range, setRange] = useState([
     {
       startDate: new Date(),
@@ -28,12 +31,10 @@ export default function WeekSelector({ onConfirm }: WeekSelectorProps) {
   };
 
   return (
-  <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-    <div className="w-full max-w-lg bg-white p-6 rounded shadow">
-      <h1 className="text-xl font-semibold mb-4">Select a Week</h1>
+    <div className="w-full max-w-lg bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 flex flex-col items-center">
+      <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase tracking-tight text-center">Select a Week</h2>
       
-      {/* 1. Wrap the DateRange in a flex container */}
-      <div className="flex justify-center w-full overflow-hidden">
+      <div className="flex justify-center w-full overflow-hidden mb-6">
         <DateRange
           onChange={(item: RangeKeyDict) => {
             const selection = item.selection;
@@ -48,12 +49,16 @@ export default function WeekSelector({ onConfirm }: WeekSelectorProps) {
               }]);
             }
           }}
+          // 2. Add these two props to prevent the calendar from jumping!
+          shownDate={shownDate}
+          onShownDateChange={(date) => setShownDate(date)}
+          
           moveRangeOnFirstSelection={true}
           ranges={range}
           rangeColors={["#3b82f6"]}
           months={1}
           direction="horizontal"
-          // 2. Add this className to ensure the internal wrapper doesn't have forced margins
+          dateDisplayFormat="dd MMM yyyy"
           className="border-none" 
         />
       </div>
@@ -61,11 +66,10 @@ export default function WeekSelector({ onConfirm }: WeekSelectorProps) {
       <button
         disabled={!range[0].startDate || !range[0].endDate}
         onClick={handleConfirm}
-        className="mt-4 w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 font-bold"
+        className="w-full py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 font-black uppercase tracking-widest transition-colors shadow-md text-sm"
       >
-        Confirm Week: {format(range[0].startDate, "MMM d")} – {format(range[0].endDate, "MMM d, yyyy")}
+        Confirm Week: {format(range[0].startDate, "dd MMM yyyy")} – {format(range[0].endDate, "dd MMM yyyy")}
       </button>
     </div>
-  </div>
-);
+  );
 }

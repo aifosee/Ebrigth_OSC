@@ -99,14 +99,14 @@ export default function DashboardDetail({ id }: DashboardDetailProps) {
 
   if (!dashboard) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-800 mb-4">Dashboard Not Found</h1>
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/home')}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Go Back
+            Go Back to Home
           </button>
         </div>
       </div>
@@ -114,36 +114,30 @@ export default function DashboardDetail({ id }: DashboardDetailProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-          >
-            ← Back
-          </button>
-          <div className={`${dashboard.color} text-white p-6 rounded-lg flex items-center gap-3`}>
-            <span className="text-4xl">{dashboard.icon}</span>
-            <h1 className="text-3xl font-bold">{dashboard.title}</h1>
-          </div>
+    <div className="w-full max-w-6xl mx-auto">
+      
+      {/* Header Box */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center mb-8">
+        <div className={`${dashboard.color} text-white px-6 py-3 rounded-xl flex items-center gap-3 shadow-md`}>
+          <span className="text-2xl">{dashboard.icon}</span>
+          <h1 className="text-2xl font-black uppercase tracking-wide m-0 leading-none">
+            {dashboard.title}
+          </h1>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dashboard.items.map((item) => (
-            <Link key={item.name} href={item.href}>
-              <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-8 h-full flex flex-col items-center justify-center text-center">
-                <span className="text-5xl mb-4">{item.icon}</span>
-                <h2 className="text-xl font-bold text-gray-800">{item.name}</h2>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </main>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {dashboard.items.map((item) => (
+          <Link key={item.name} href={item.href}>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer p-8 h-full flex flex-col items-center justify-center text-center">
+              <span className="text-5xl mb-4">{item.icon}</span>
+              <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">{item.name}</h2>
+            </div>
+          </Link>
+        ))}
+      </div>
+
     </div>
   );
 }
