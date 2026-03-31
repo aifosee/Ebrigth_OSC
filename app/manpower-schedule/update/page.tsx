@@ -676,20 +676,81 @@ export default function UpdateSchedulePage() {
                 <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-slate-300 text-center shadow-sm">
                     <p className="text-slate-500 font-bold text-lg uppercase tracking-widest">No schedules available matching filters.</p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {filteredHistory.map((record: any) => (
-                    <div key={record.id} onClick={() => handleSelectRecord(record)} className="bg-white p-8 rounded-3xl shadow-md border-4 border-transparent hover:border-orange-500 cursor-pointer transition-all flex flex-col justify-center">
-                        <h3 className="font-black text-2xl uppercase text-slate-800 mb-2">{record.branch}</h3>
-                        <div className="inline-flex items-center gap-2">
-                          <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-md text-xs font-bold tracking-widest uppercase shadow-sm">
-                            Week Of: {formatDateString(record.startDate)}
-                          </span>
+              ) : (() => {
+                  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                  const WEEK_LABELS = ["1 – 7","8 – 14","15 – 21","22 – 31"];
+                  const getWeekBucket = (dateStr: string) => {
+                    const d = parseInt(format(parseISO(dateStr), "d"));
+                    if (d <= 7) return 0; if (d <= 14) return 1; if (d <= 21) return 2; return 3;
+                  };
+                  const byYear: Record<string, any[]> = {};
+                  filteredHistory.forEach(r => {
+                    const y = format(parseISO(r.startDate), "yyyy");
+                    if (!byYear[y]) byYear[y] = [];
+                    byYear[y].push(r);
+                  });
+                  return Object.keys(byYear).sort((a,b) => parseInt(b)-parseInt(a)).map(year => {
+                    const recs = byYear[year];
+                    const monthIdxs = Array.from(new Set(recs.map(r => parseInt(format(parseISO(r.startDate),"M"))-1))).sort((a,b)=>a-b);
+                    const buckets = Array.from(new Set(recs.map(r => getWeekBucket(r.startDate)))).sort();
+                    const lookup: Record<string,any[]> = {};
+                    recs.forEach(r => {
+                      const k = `${parseInt(format(parseISO(r.startDate),"M"))-1}-${getWeekBucket(r.startDate)}`;
+                      if (!lookup[k]) lookup[k] = [];
+                      lookup[k].push(r);
+                    });
+                    return (
+                      <div key={year} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                        <div className="bg-[#2D3F50] px-6 py-3">
+                          <h2 className="text-white font-black text-xl uppercase tracking-widest">{year}</h2>
                         </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-slate-100">
+                                <th className="p-3 text-xs font-black uppercase text-slate-400 border-b border-r border-slate-200 w-20"></th>
+                                {monthIdxs.map(mi => (
+                                  <th key={mi} className="p-3 text-xs font-black uppercase text-slate-600 border-b border-r border-slate-200 text-center min-w-[140px]">
+                                    {MONTH_NAMES[mi]}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {buckets.map(bucket => (
+                                <tr key={bucket} className="border-b border-slate-100">
+                                  <td className="p-3 text-xs font-black text-slate-400 border-r border-slate-200 text-center whitespace-nowrap bg-slate-50">
+                                    {WEEK_LABELS[bucket]}
+                                  </td>
+                                  {monthIdxs.map(mi => {
+                                    const cellRecs = lookup[`${mi}-${bucket}`] || [];
+                                    return (
+                                      <td key={mi} className="p-2 border-r border-slate-200 align-top">
+                                        {cellRecs.length > 0 ? (
+                                          <div className="flex flex-col gap-1">
+                                            {cellRecs.map(record => (
+                                              <button key={record.id} onClick={() => handleSelectRecord(record)}
+                                                className="w-full text-left px-3 py-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors">
+                                                <div className="font-black text-xs text-orange-800 uppercase">{record.branch}</div>
+                                                <div className="text-[10px] text-orange-500 font-bold mt-0.5">
+                                                  {format(parseISO(record.startDate),"dd MMM")} – {format(parseISO(record.endDate),"dd MMM")}
+                                                </div>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        ) : <span className="text-slate-200 text-xs flex justify-center">—</span>}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  });
+              })()}
             </div>
         </main>
       </div>
