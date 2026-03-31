@@ -14,6 +14,7 @@ export const WEEKDAY_DAYS = ["Wednesday", "Thursday", "Friday"] as const;
 export const BRANCH_WORKING_DAYS: Record<string, string[]> = {
   "Ampang": ["Thursday", "Friday", "Saturday", "Sunday"],
   "Bandar Seri Putra": ["Thursday", "Friday", "Saturday", "Sunday"],
+  "Klang": ["Thursday", "Friday", "Saturday", "Sunday"],
 };
 
 export function getWorkingDaysForBranch(branchName: string): string[] {
@@ -85,6 +86,7 @@ export const BRANCH_SLOTS_CONFIG: Record<string, { weekday: readonly string[], w
   "Subang Taipan": { weekday: TAIPAN_WEEKDAY_TIME_SLOTS, weekend: DEFAULT_WEEKEND_TIME_SLOTS },
   "Ampang": { weekday: AMPANG_WEEKDAY_TIME_SLOTS, weekend: AMPANG_WEEKEND_TIME_SLOTS },
   "Bandar Seri Putra": { weekday: AMPANG_WEEKDAY_TIME_SLOTS, weekend: AMPANG_WEEKEND_TIME_SLOTS },
+  "Klang": { weekday: AMPANG_WEEKDAY_TIME_SLOTS, weekend: AMPANG_WEEKEND_TIME_SLOTS },
   "default": { weekday: DEFAULT_WEEKDAY_TIME_SLOTS, weekend: DEFAULT_WEEKEND_TIME_SLOTS }
 };
 
@@ -92,6 +94,7 @@ export const BRANCH_SLOTS_CONFIG: Record<string, { weekday: readonly string[], w
 const OPENING_CLOSING_SLOTS: Record<string, string[]> = {
   "Ampang": ["5:00 PM - 6:00 PM", "9:45 PM - 10:00 PM", "8:45 AM - 9:15 AM", "6:45 PM - 7:15 PM"],
   "Bandar Seri Putra": ["5:00 PM - 6:00 PM", "9:45 PM - 10:00 PM", "8:45 AM - 9:15 AM", "6:45 PM - 7:15 PM"],
+  "Klang": ["5:00 PM - 6:00 PM", "9:45 PM - 10:00 PM", "8:45 AM - 9:15 AM", "6:45 PM - 7:15 PM"],
 };
 
 export function isOpeningClosingSlot(slot: string, branchName: string): boolean {
