@@ -105,23 +105,23 @@ export function isAdminSlot(slot: string, branchName: string) {
 
 const MANAGER_ON_DUTY_SLOTS: Record<string, { weekday: string[], weekend: string[] }> = {
   "Ampang": {
-    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM"],
+    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM", "08.30PM - 09:45PM"],
     weekend: ["09:15 AM – 10:30 AM", "10:30 AM – 11:45 AM", "12:00 PM – 1:15 PM", "1:15 PM – 2:30 PM", "2:45 PM – 4:00 PM", "4:00 PM – 5:15 PM", "5:30 PM – 6:45 PM"],
   },
   "Bandar Seri Putra": {
-    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM"],
+    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM", "08.30PM - 09:45PM"],
     weekend: ["09:15 AM – 10:30 AM", "10:30 AM – 11:45 AM", "12:00 PM – 1:15 PM", "1:15 PM – 2:30 PM", "2:45 PM – 4:00 PM", "4:00 PM – 5:15 PM", "5:30 PM – 6:45 PM"],
   },
   "Klang": {
-    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM"],
+    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM", "08.30PM - 09:45PM"],
     weekend: ["09:15 AM – 10:30 AM", "10:30 AM – 11:45 AM", "12:00 PM – 1:15 PM", "1:15 PM – 2:30 PM", "2:45 PM – 4:00 PM", "4:00 PM – 5:15 PM", "5:30 PM – 6:45 PM"],
   },
   "Subang Taipan": {
-    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM"],
+    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM", "08.30PM - 09:45PM"],
     weekend: ["09:15 AM – 10:30 AM", "10:30 AM – 11:45 AM", "12:00 PM – 1:15 PM", "1:15 PM – 2:30 PM", "2:45 PM – 4:00 PM", "4:00 PM – 5:15 PM", "5:30 PM – 6:45 PM"],
   },
   "default": {
-    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM"],
+    weekday: ["06.00PM - 07.15PM", "07:15PM - 08:30PM", "08.30PM - 09:45PM"],
     weekend: ["09:15 AM – 10:30 AM", "10:30 AM – 11:45 AM", "12:00 PM – 1:15 PM", "1:15 PM – 2:30 PM", "2:45 PM – 4:00 PM", "4:00 PM – 5:15 PM", "5:30 PM – 6:45 PM"],
   },
 };

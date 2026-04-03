@@ -267,13 +267,20 @@ function PlanNewWeekPage() {
 
   const handleNameSelect = (day: string, targetTime: string, columnId: string, name: string) => {
     if (isLocked) return;
-    
+
     setSelections((prev) => {
       const next = { ...prev };
       if (!name) {
+        // Clear only this specific slot
         delete next[`${day}-${targetTime}-${columnId}`];
       } else {
-        next[`${day}-${targetTime}-${columnId}`] = name;
+        // Auto-fill ALL non-opening/closing slots in this column
+        const daySlots = getTimeSlotsForDay(day, selectedBranch);
+        daySlots.forEach((slot) => {
+          if (!isOpeningClosingSlot(slot, selectedBranch)) {
+            next[`${day}-${slot}-${columnId}`] = name;
+          }
+        });
       }
       return next;
     });
@@ -389,10 +396,24 @@ function PlanNewWeekPage() {
 
   const dayHasData = (day: string) => Object.keys(selections).some(k => k.startsWith(`${day}-`));
 
+  const STAFF_COLORS = [
+    "bg-red-500 text-white", "bg-orange-500 text-white", "bg-amber-500 text-black",
+    "bg-lime-600 text-white", "bg-green-600 text-white", "bg-emerald-500 text-white",
+    "bg-teal-600 text-white", "bg-cyan-600 text-white", "bg-sky-500 text-white",
+    "bg-blue-600 text-white", "bg-indigo-600 text-white", "bg-violet-600 text-white",
+    "bg-purple-600 text-white", "bg-fuchsia-600 text-white", "bg-pink-600 text-white",
+    "bg-rose-600 text-white", "bg-red-700 text-white", "bg-orange-700 text-white",
+    "bg-yellow-600 text-white", "bg-green-700 text-white", "bg-teal-700 text-white",
+    "bg-blue-700 text-white", "bg-indigo-700 text-white", "bg-violet-700 text-white",
+    "bg-pink-700 text-white", "bg-rose-700 text-white", "bg-cyan-700 text-white",
+    "bg-sky-700 text-white", "bg-emerald-700 text-white", "bg-purple-700 text-white",
+  ];
+
   const getStaffColor = (name: string) => {
     if (!name || name === "None") return "bg-white border border-slate-200 text-slate-400";
     const idx = activeStaffList.indexOf(name);
-    return getEmployeeColor(idx >= 0 ? activeStaffList[idx] : name);
+    if (idx >= 0) return STAFF_COLORS[idx % STAFF_COLORS.length];
+    return getEmployeeColor(name);
   };
 
   // Safely check role for UI tweaks
