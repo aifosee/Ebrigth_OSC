@@ -53,18 +53,18 @@ const SummaryTable = ({ title, data, theme = "blue" }: { title: string, data: an
 
   return (
     <div className={`overflow-hidden rounded-xl border ${theme === "orange" ? "border-orange-200" : "border-slate-200"} bg-white shadow-md w-full flex-1`}>
-      <header className={`border-b px-2 py-1.5 text-center ${theme === "orange" ? "bg-orange-600 text-white" : "bg-[#2D3F50] text-white"}`}>
-        <h3 className="text-[10px] font-black uppercase tracking-widest">{title}</h3>
+      <header className={`border-b px-3 py-2 text-center ${theme === "orange" ? "bg-orange-600 text-white" : "bg-[#2D3F50] text-white"}`}>
+        <h3 className="text-xs font-black uppercase tracking-widest">{title}</h3>
       </header>
       <div className="overflow-x-auto">
-        <table className="w-full text-[8px] border-collapse">
+        <table className="w-full text-xs border-collapse"> {/* Increased font size to text-xs (12px) */}
           <thead className="bg-slate-100 text-slate-600 border-b">
             <tr>
-              <th className="p-1.5 border-r text-left w-6">No.</th>
-              <th className="p-1.5 border-r text-left">Name</th>
-              <th className="p-2 border-r text-center">Coach</th>
-              <th className="p-2 border-r text-center">Exec</th>
-              <th className="p-2 text-center">Total</th>
+              <th className="p-3 border-r text-left w-10">No.</th>
+              <th className="p-3 border-r text-left">Name</th>
+              <th className="p-3 border-r text-center">Coach</th>
+              <th className="p-3 border-r text-center">Exec</th>
+              <th className="p-3 text-center">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -74,16 +74,16 @@ const SummaryTable = ({ title, data, theme = "blue" }: { title: string, data: an
               const t = formatTime(row.total);
               return (
                 <tr key={row.name} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-1.5 border-r text-center text-slate-400 font-bold">{index + 1}</td>
-                  <td className="p-1.5 border-r font-black text-slate-700 truncate">{row.name}</td>
-                  <td className="p-1.5 border-r text-center">
-                    <span className="bg-slate-50 border rounded px-1 py-0.5 text-slate-600 font-bold">{c.h}h {c.m}m</span>
+                  <td className="p-3 border-r text-center text-slate-400 font-bold">{index + 1}</td>
+                  <td className="p-3 border-r font-black text-slate-700 truncate">{row.name}</td>
+                  <td className="p-3 border-r text-center">
+                    <span className="bg-slate-50 border rounded px-2 py-1 text-slate-600 font-bold">{c.h}h {c.m}m</span>
                   </td>
-                  <td className="p-1.5 border-r text-center">
-                    <span className="bg-slate-50 border rounded px-1 py-0.5 text-slate-600 font-bold">{e.h}h {e.m}m</span>
+                  <td className="p-3 border-r text-center">
+                    <span className="bg-slate-50 border rounded px-2 py-1 text-slate-600 font-bold">{e.h}h {e.m}m</span>
                   </td>
-                  <td className="p-1.5 text-center">
-                    <span className={`rounded-lg px-2 py-0.5 font-black border ${theme === "orange" ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-blue-50 border-blue-200 text-blue-600"}`}>
+                  <td className="p-3 text-center">
+                    <span className={`rounded-lg px-3 py-1 font-black border ${theme === "orange" ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-blue-50 border-blue-200 text-blue-600"}`}>
                       {t.h}:{t.m}
                     </span>
                   </td>
@@ -126,6 +126,23 @@ export default function UpdateSchedulePage() {
     endDate: new Date(),
     key: "selection",
   }]);
+
+  // FIX DUPLICATES: Create a clean list of unique names
+  const activeStaffList = useMemo(() => {
+    if (!selectedRecord) return [];
+    const branchStaff = branchStaffData[selectedRecord.branch] || [];
+    const originalNames = Object.values(selectedRecord.originalSelections || {}).filter(Boolean) as string[];
+    const currentNames = Object.values(updatedSelections || {}).filter(Boolean) as string[];
+
+    // Using Set to automatically remove duplicates between Shared and Database lists
+    const combined = new Set([
+      ...branchStaff,
+      ...SHARED_EMPLOYEES,
+      ...originalNames,
+      ...currentNames
+    ]);
+    return Array.from(combined);
+  }, [selectedRecord, branchStaffData, updatedSelections]);
 
   useEffect(() => {
     const fetchSchedules = async () => {
@@ -173,7 +190,6 @@ export default function UpdateSchedulePage() {
     });
   }, [history, filterBranch, filterDate, userRole, userBranch]);
 
-  // Compute which staff are already scheduled at other branches for the same week
   useEffect(() => {
     if (!selectedRecord) return;
     const map: Record<string, Record<string, Set<string>>> = {};
@@ -211,7 +227,6 @@ export default function UpdateSchedulePage() {
       if (!name || name === "None") {
         delete next[slotKey];
       } else {
-        // Validation: Block if already in another column for this slot
         const usedInOther = COLUMNS.filter(c => c.id !== colId).some(c => next[`${day}-${targetTime}-${c.id}`] === name) ||
                            next[`${day}-${targetTime}-MANAGER`] === name;
         
@@ -230,22 +245,6 @@ export default function UpdateSchedulePage() {
     setUpdatedSelections(prev => {
       const next = { ...prev };
       Object.keys(next).forEach(key => { if (key.startsWith(`${day}-`)) delete next[key]; });
-      return next;
-    });
-  };
-
-  const clearManagerForDay = (day: string) => {
-    setUpdatedSelections(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(key => { if (key.startsWith(`${day}-`) && key.endsWith(`-MANAGER`)) delete next[key]; });
-      return next;
-    });
-  };
-
-  const handleClearColumn = (day: string, colId: string) => {
-    setUpdatedSelections(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(key => { if (key.startsWith(`${day}-`) && key.endsWith(`-${colId}`)) delete next[key]; });
       return next;
     });
   };
@@ -294,14 +293,7 @@ export default function UpdateSchedulePage() {
 
   const handleUpdateSave = async () => {
     if (!window.confirm("Save adjustments to the database?")) return;
-    
-    const updatedRecord = {
-      ...selectedRecord,
-      selections: updatedSelections,
-      notes: updatedNotes,
-      status: "Updated",
-    };
-
+    const updatedRecord = { ...selectedRecord, selections: updatedSelections, notes: updatedNotes, status: "Updated" };
     try {
       const response = await fetch('/api/save-schedule', {
         method: 'POST',
@@ -319,17 +311,10 @@ export default function UpdateSchedulePage() {
   };
 
   if (selectedRecord) {
-    const activeStaffList = Array.from(new Set([
-        ...SHARED_EMPLOYEES,
-        ...(branchStaffData[selectedRecord.branch] || []),
-        ...Object.values(selectedRecord.originalSelections || {}).filter(Boolean) as string[],
-        ...Object.values(updatedSelections || {}).filter(Boolean) as string[]
-    ]));
-
     return (
       <div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden">
         <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
-        <main className="flex-1 h-screen flex flex-col overflow-hidden relative" style={{ zoom: 1.0 }}>
+        <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
           <div className="shrink-0 w-full mx-auto px-4 md:px-6 pt-4 md:pt-6 z-50 bg-slate-50">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-6 mb-6">
               <div className="flex items-center gap-6">
@@ -399,7 +384,7 @@ export default function UpdateSchedulePage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {slots.map((slot, idx) => {
+                              {slots.map((slot) => {
                                 const isOpenClose = isOpeningClosingSlot(slot, selectedRecord.branch);
                                 const showManagerPlanning = isManagerOnDutySlot(slot, selectedRecord.branch, day);
                                 const planningManagerName = originalData[`${day}-${slot}-MANAGER`] || "";
@@ -431,7 +416,7 @@ export default function UpdateSchedulePage() {
                         </div>
                       </div>
 
-                      {/* ACTUAL SIDE (Editable) */}
+                      {/* ACTUAL SIDE */}
                       <div className="flex-1 flex flex-col min-w-0">
                         <div className="bg-orange-600 p-1.5 flex justify-between items-center mb-1 rounded text-white tracking-widest h-8">
                             <span className="text-[10px] font-black bg-black/10 px-2 py-1 rounded">{selectedRecord.branch}</span>
@@ -479,7 +464,7 @@ export default function UpdateSchedulePage() {
                                       <td className="p-1 border bg-emerald-50">
                                         {showManagerActual ? (
                                           <select value={actualManagerVal} onChange={(e) => handleActualNameSelect(day, slot, "MANAGER", e.target.value)} 
-                                            className={`w-full h-full p-1 text-[11px] font-bold text-center border rounded appearance-none ${actualManagerVal ? getStaffColorByIndex(actualManagerVal, activeStaffList) : 'bg-white'}`}>
+                                            className={`w-full h-full p-1 text-[11px] font-bold text-center border rounded appearance-none truncate ${actualManagerVal ? getStaffColorByIndex(actualManagerVal, activeStaffList) : 'bg-white'}`}>
                                             <option value="">-- Select --</option>
                                             {(branchManagerData[managerReplacementBranch[day] || selectedRecord.branch] || []).map(e => {
                                               const targetBranch = managerReplacementBranch[day] || selectedRecord.branch;
@@ -501,7 +486,7 @@ export default function UpdateSchedulePage() {
                                           return (
                                             <td key={col.id} className="p-0 border">
                                               <select value={val} onChange={(e) => handleActualNameSelect(day, slot, col.id, e.target.value)}
-                                                className={`w-full h-full p-1 font-bold text-center appearance-none ${val ? getStaffColorByIndex(val, activeStaffList) : 'bg-transparent text-slate-300'}`}>
+                                                className={`w-full h-full p-1 font-bold text-center appearance-none truncate ${val ? getStaffColorByIndex(val, activeStaffList) : 'bg-transparent text-slate-300'}`}>
                                                 <option value="">None</option>
                                                 {colStaffList.map(e => {
                                                   const targetBranch = replacementBranch || selectedRecord.branch;
@@ -530,7 +515,7 @@ export default function UpdateSchedulePage() {
               })()}
 
               <div className="mt-6 bg-white p-4 rounded-xl border border-slate-200 shadow-md">
-                <h2 className="text-sm font-black text-center uppercase tracking-widest text-slate-800 mb-4">📊 Staff Hours Comparison</h2>
+                <h2 className="text-base font-black text-center uppercase tracking-widest text-slate-800 mb-4">📊 Staff Hours Comparison</h2>
                 <div className="flex flex-col md:flex-row gap-4">
                     <SummaryTable title="ORIGINAL" data={calculateHoursForData({}, true)} theme="blue" />
                     <SummaryTable title="ADJUSTED" data={calculateHoursForData(updatedSelections, false)} theme="orange" />
@@ -543,7 +528,6 @@ export default function UpdateSchedulePage() {
     );
   }
 
-  // --- LIST VIEW ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
         <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
