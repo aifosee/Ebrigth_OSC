@@ -694,22 +694,11 @@ function PlanNewWeekPage() {
                                     const colStaffList = replacementBranch
                                       ? (branchStaffData[replacementBranch] || [])
                                       : activeStaffList;
-                                    // Block names used in same slot across any column type (cross-type per-slot conflict)
-                                    const namesInSameSlot = new Set(
-                                      COLUMNS.filter(c => c.id !== col.id)
-                                        .map(c => selections[`${day}-${slot}-${c.id}`])
-                                        .filter(Boolean)
-                                    );
-                                    // Block names used in same column type across any slot (same-role dedup)
-                                    const namesInSameType = new Set(
-                                      COLUMNS.filter(c => c.id !== col.id && c.type === col.type)
-                                        .flatMap(c => daySlots.map(s => selections[`${day}-${s}-${c.id}`]))
-                                        .filter(Boolean)
-                                    );
+                                    // Only block names already selected in another column for THIS SAME SLOT
                                     const namesUsedInOtherColumns = new Set([
-                                      ...namesInSameSlot,
-                                      ...namesInSameType,
-                                      // Also block whoever is selected as manager for this slot
+                                      ...COLUMNS.filter(c => c.id !== col.id)
+                                        .map(c => selections[`${day}-${slot}-${c.id}`])
+                                        .filter(Boolean),
                                       ...(managerVal ? [managerVal] : []),
                                     ]);
 
