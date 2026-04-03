@@ -43,6 +43,13 @@ const getDateForDay = (dayName: string, startDateStr: string) => {
   return "";
 };
 
+// Helper to clean up long names for display
+const getShortName = (fullName: string) => {
+  if (!fullName) return "";
+  // Split by space and take the first word (e.g., "NAQIB AL HUSSAINI" -> "NAQIB")
+  return fullName.split(' ')[0];
+};
+
 // --- HELPER COMPONENT: DETAILED SUMMARY TABLE ---
 const SummaryTable = ({ title, data, theme = "blue" }: { title: string, data: any[], theme?: "blue" | "orange" }) => {
   const formatTime = (d: number) => {
@@ -75,7 +82,7 @@ const SummaryTable = ({ title, data, theme = "blue" }: { title: string, data: an
               return (
                 <tr key={row.name} className="hover:bg-slate-50 transition-colors">
                   <td className="p-1.5 border-r text-center text-slate-400 font-bold">{index + 1}</td>
-                  <td className="p-1.5 border-r font-black text-slate-700 truncate">{row.name}</td>
+                  <td className="p-1.5 border-r font-black text-slate-700 truncate">{getShortName(row.name)}</td>
                   <td className="p-1.5 border-r text-center">
                     <span className="bg-slate-50 border rounded px-1 py-0.5 text-slate-600 font-bold">{c.h}h {c.m}m</span>
                   </td>
@@ -434,7 +441,7 @@ export default function UpdateSchedulePage() {
                                         {showManagerPlanning ? (
                                           planningManagerName ? (
                                             <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${planningManagerName ? '' : ''}`}>
-                                              {planningManagerName}
+                                              {getShortName(planningManagerName)}
                                             </span>
                                           ) : (
                                             <span className="text-slate-300">-</span>
@@ -457,7 +464,7 @@ export default function UpdateSchedulePage() {
                                           const name = originalData[`${day}-${slot}-${col.id}`];
                                           return (
                                             <td key={col.id} className={`p-1 border text-center font-bold h-[32px] ${name ? getStaffColorByIndex(name, activeStaffList) : 'bg-white'}`}>
-                                              {name || "-"}
+                                              {getShortName(name) || "-"}
                                             </td>
                                           );
                                         })}
@@ -573,7 +580,7 @@ export default function UpdateSchedulePage() {
                                               const isConflict = !!conflictBranch;
                                               return (
                                                 <option key={e} value={e} disabled={isConflict}>
-                                                  {isConflict ? `${e} (at ${conflictBranch})` : e}
+                                                  {isConflict ? `${getShortName(e)} (at ${conflictBranch})` : getShortName(e)}
                                                 </option>
                                               );
                                             })}
@@ -621,7 +628,7 @@ export default function UpdateSchedulePage() {
                                                   const isConflict = !!conflictBranch;
                                                   return (
                                                     <option key={e} value={e} disabled={namesUsedInOtherColumns.has(e) || isConflict} className="text-black">
-                                                      {isConflict ? `${e} (at ${conflictBranch})` : e}
+                                                      {isConflict ? `${getShortName(e)} (at ${conflictBranch})` : getShortName(e)}
                                                     </option>
                                                   );
                                                 })}
