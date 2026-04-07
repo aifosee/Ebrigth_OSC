@@ -818,12 +818,15 @@ export default function UpdateSchedulePage() {
               ) : (() => {
                 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
                 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                const lastDay = (drillYear && drillMonth !== null)
+                  ? new Date(parseInt(drillYear), drillMonth + 1, 0).getDate()
+                  : 31;
                 const WEEK_RANGES = [
                   { label: "01 – 07", start: 1, end: 7 },
                   { label: "08 – 14", start: 8, end: 14 },
                   { label: "15 – 21", start: 15, end: 21 },
                   { label: "22 – 28", start: 22, end: 28 },
-                  { label: "29 – end", start: 29, end: 31 },
+                  ...(lastDay >= 29 ? [{ label: `29 – ${String(lastDay).padStart(2, "0")}`, start: 29, end: lastDay }] : []),
                 ];
                 const byYear: Record<string, any[]> = {};
                 filteredHistory.forEach((r: any) => {

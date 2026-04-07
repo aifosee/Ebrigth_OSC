@@ -53,13 +53,14 @@ export default function WeekSelector({ onConfirm }: WeekSelectorProps) {
           shownDate={shownDate}
           onShownDateChange={(date) => setShownDate(date)}
           
+          weekStartsOn={1}
           moveRangeOnFirstSelection={true}
           ranges={range}
           rangeColors={["#3b82f6"]}
           months={1}
           direction="horizontal"
           dateDisplayFormat="dd MMM yyyy"
-          className="border-none" 
+          className="border-none"
         />
       </div>
 
