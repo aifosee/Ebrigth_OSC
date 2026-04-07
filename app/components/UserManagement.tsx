@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { BRANCH_OPTIONS, ROLE_OPTIONS, CONTRACT_OPTIONS, GENDER_OPTIONS } from "@/lib/constants";
 
 interface User {
@@ -44,10 +45,12 @@ interface UserManagementProps {
   userRole?: string;
 }
 
+const UPPERCASE_LABELS = ["Full Name", "Nick Name", "Home Address"];
+
 const field = (label: string, value: string | undefined | null) => (
   <div className="bg-gray-50 p-3 rounded">
     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-    <p className="text-sm font-medium text-gray-900">{value || "-"}</p>
+    <p className={`text-sm font-medium text-gray-900 ${UPPERCASE_LABELS.includes(label) ? "uppercase" : ""}`}>{value || "-"}</p>
   </div>
 );
 
@@ -59,6 +62,10 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<User | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  const searchParams = useSearchParams();
+  const targetEmployeeId = searchParams.get("employeeId");
 
   const isAuthorized = userRole === "SUPER_ADMIN";
 
@@ -78,6 +85,16 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
     };
     fetchUsers();
   }, [isAuthorized]);
+
+  useEffect(() => {
+    if (!targetEmployeeId || users.length === 0) return;
+    const match = users.find((u) => u.id === targetEmployeeId);
+    if (match) {
+      setSelectedUser(match);
+      setEditData({ ...match });
+      setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+  }, [targetEmployeeId, users]);
 
   const handleArchive = async (id: string) => {
     if (!confirm("Archive this employee? They will be marked as resigned.")) return;
@@ -127,8 +144,10 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
         body: JSON.stringify(editData),
       });
       if (response.ok) {
-        setUsers(users.map((u) => (u.id === editData.id ? editData : u)));
-        setSelectedUser(editData);
+        const result = await response.json();
+        const saved: User = result.data || editData;
+        setUsers(users.map((u) => (u.id === editData.id ? saved : u)));
+        setSelectedUser(saved);
         setEditMode(false);
       } else {
         setError("Failed to save user");
@@ -141,7 +160,16 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (editData) setEditData({ ...editData, [name]: value });
+    if (!editData) return;
+    const uppercaseFields = ["fullName", "nickName", "homeAddress"];
+    const normalized = uppercaseFields.includes(name) ? value.toUpperCase() : value;
+    let updates: Partial<User> = { [name]: normalized };
+    if (name === "Emp_Status") {
+      updates.accessStatus = value === "Active" ? "AUTHORIZED" : value === "Inactive" ? "UNAUTHORIZED" : editData.accessStatus;
+    } else if (name === "accessStatus") {
+      updates.Emp_Status = value === "AUTHORIZED" ? "Active" : value === "UNAUTHORIZED" ? "Inactive" : editData.Emp_Status;
+    }
+    setEditData({ ...editData, ...updates });
   };
 
   const getDisplayName = (user: User) =>
@@ -154,7 +182,7 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
       user.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const inp = (label: string, name: keyof User, type = "text") => (
+  const inp = (label: string, name: keyof User, type = "text", extraClass = "") => (
     <div>
       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</label>
       <input
@@ -162,7 +190,7 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
         name={name}
         value={(editData?.[name] as string) || ""}
         onChange={handleInputChange}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${extraClass}`}
       />
     </div>
   );
@@ -244,7 +272,7 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
         </div>
 
         {/* Detail / Edit Panel */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" ref={detailRef}>
           {selectedUser ? (
             <div className="bg-white rounded-lg shadow p-6">
               {/* Header */}
@@ -267,6 +295,14 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
                       >
                         ✏️ Edit
                       </button>
+                      {selectedUser.accessStatus !== "ARCHIVED" && (
+                        <button
+                          onClick={() => handleArchive(selectedUser.id)}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-colors"
+                        >
+                          Archive
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(selectedUser.id)}
                         className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-colors"
@@ -288,7 +324,7 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Full Name</label>
                         <input type="text" name="fullName" value={editData ? getDisplayName(editData) : ""}
                           onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Gender</label>
@@ -297,13 +333,13 @@ export default function UserManagement({ userRole = "SUPER_ADMIN" }: UserManagem
                           {GENDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
-                      {inp("Nick Name", "nickName")}
+                      {inp("Nick Name", "nickName", "text", "uppercase")}
                       {inp("Email", "email", "email")}
                       {inp("Phone Number", "phone", "tel")}
                       {inp("NRIC", "nric")}
                       {inp("Date of Birth", "dob", "date")}
                       {inp("University", "University")}
-                      <div className="md:col-span-2">{inp("Home Address", "homeAddress")}</div>
+                      <div className="md:col-span-2">{inp("Home Address", "homeAddress", "text", "uppercase")}</div>
                     </div>
                   </section>
 

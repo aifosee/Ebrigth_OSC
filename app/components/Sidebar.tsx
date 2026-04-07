@@ -4,8 +4,8 @@ import Link from "next/link";
 
 interface SidebarProps {
   sidebarOpen: boolean;
-  onToggle: () => void;
-  onCollapse?: () => void; // kept for backward compat
+  onToggle?: () => void;
+  onCollapse?: () => void;
 }
 
 const navigationItems = [

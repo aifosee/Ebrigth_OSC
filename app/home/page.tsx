@@ -33,12 +33,15 @@ export default function HomePage() {
             <h1 className="text-3xl font-bold">Ebright Portal</h1>
             <p className="text-blue-100 mt-1">Dashboard Home</p>
           </div>
-          <UserHeader userName={branchName} userEmail={userEmail} />
+          <UserHeader
+            userName={branchName}
+            userEmail={userEmail}
+          />
         </div>
       </header>
 
       <div className="flex h-[calc(100vh-100px)]">
-        <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
+        <Sidebar sidebarOpen={sidebarOpen} onCollapse={() => setSidebarOpen(false)} />
 
         {!sidebarOpen && (
           <button

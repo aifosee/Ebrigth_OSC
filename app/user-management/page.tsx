@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, Suspense } from "react";
 import UserManagement from "@/app/components/UserManagement";
 import RegistrationForm from "@/app/components/RegistrationForm";
 import Sidebar from "@/app/components/Sidebar";
@@ -199,7 +199,9 @@ export default function UserManagementPage() {
           )}
 
           {/* User Management Table */}
-          <UserManagement key={refreshKey} />
+          <Suspense fallback={null}>
+            <UserManagement key={refreshKey} />
+          </Suspense>
         </main>
       </div>
     </div>

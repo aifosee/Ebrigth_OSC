@@ -90,9 +90,10 @@ export default function RegistrationForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    const uppercaseFields = ["fullName", "nickName", "homeAddress"];
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: uppercaseFields.includes(name) ? value.toUpperCase() : value,
     }));
     // Clear error for this field
     if (errors[name]) {
@@ -192,7 +193,7 @@ export default function RegistrationForm({
               name="fullName"
               value={formData.fullName}
               onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 uppercase ${
                 errors.fullName ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Enter full name"
@@ -233,7 +234,7 @@ export default function RegistrationForm({
               name="nickName"
               value={formData.nickName}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 uppercase"
               placeholder="Enter nick name"
               disabled={submitting || isLoading}
             />
@@ -323,7 +324,7 @@ export default function RegistrationForm({
               name="homeAddress"
               value={formData.homeAddress}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 uppercase"
               placeholder="Enter home address"
               disabled={submitting || isLoading}
             />

@@ -7,12 +7,10 @@ import UserHeader from "@/app/components/UserHeader";
 
 export default function RegisterPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
-        <div className="flex justify-between items-center px-4 py-6">
         <div className="flex justify-between items-center pl-14 pr-4 py-6">
           <div>
             <h1 className="text-3xl font-bold">Add User</h1>
