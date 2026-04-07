@@ -79,7 +79,7 @@ const SummaryTable = ({ title, data, theme = "blue" }: { title: string, data: an
               return (
                 <tr key={row.name} className="hover:bg-slate-50 transition-colors">
                   <td className="p-2 border-r text-center text-slate-400 font-bold">{index + 1}</td>
-                  <td className="p-2 border-r font-black text-slate-700">{getShortName(row.name)}</td>
+                  <td className="p-2 border-r font-black text-slate-700">{row.name}</td>
                   <td className="p-2 border-r text-center">
                     <span className="bg-slate-50 border rounded px-2 py-0.5 text-slate-600 font-bold">{c.h}h {c.m}m</span>
                   </td>
@@ -298,7 +298,7 @@ export default function UpdateSchedulePage() {
     if (!selectedRecord) return [];
     const rawData = isOriginalData ? (selectedRecord.originalSelections || selectedRecord.selections) : selections;
     if (!rawData) return [];
-    const dataToCalculate = sanitizeSelections(rawData);
+    const dataToCalculate = sanitizeSelections(rawData, selectedRecord.branch);
 
     const managerNames = new Set(Object.values(branchManagerData).flat());
     const allBranchStaff = (branchStaffData[selectedRecord.branch] || []).filter(n => !managerNames.has(n));
