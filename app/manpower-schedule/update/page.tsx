@@ -444,10 +444,15 @@ export default function UpdateSchedulePage() {
               {selectedDay && (() => {
                 const day = selectedDay;
                 const slots = getTimeSlotsForDay(day, selectedRecord.branch);
-                const activeStaffList = Array.from(new Set([
-                  ...SHARED_EMPLOYEES,
-                  ...(branchStaffData[selectedRecord.branch] || [])
+                const currentStaff = [...SHARED_EMPLOYEES, ...(branchStaffData[selectedRecord.branch] || [])];
+                const currentStaffLower = new Set(currentStaff.map(n => n.toLowerCase()));
+                // Include replacement staff from other branches already saved in this record
+                const namesInRecord = Array.from(new Set([
+                  ...Object.values(originalData).filter((v): v is string => !!v && v !== "None"),
+                  ...Object.values(updatedSelections).filter((v): v is string => !!v && v !== "None"),
                 ]));
+                const extraNames = namesInRecord.filter(n => !currentStaffLower.has(n.toLowerCase()));
+                const activeStaffList = Array.from(new Set([...currentStaff, ...extraNames]));
                 return (
                   <div key={day} className="bg-white rounded-xl shadow-lg p-3 border-t-2 border-orange-500">
                     <div className="relative flex flex-col justify-center items-center mb-3 border-b pb-2 min-h-[30px]">
