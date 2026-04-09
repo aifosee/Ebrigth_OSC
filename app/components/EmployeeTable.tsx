@@ -21,6 +21,7 @@ interface Employee {
   contract: string;
   startDate: string;
   probation: string;
+  Emp_Status?: string;
   accessStatus: string;
   biometricTemplate: string | null;
   registeredAt: string;
@@ -38,7 +39,7 @@ export default function EmployeeTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [accessFilter, setAccessFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +61,6 @@ export default function EmployeeTable({
       if (searchTerm) params.append("search", searchTerm);
       if (branchFilter !== "all") params.append("branch", branchFilter);
       if (roleFilter !== "all") params.append("role", roleFilter);
-      if (accessFilter !== "all") params.append("accessStatus", accessFilter);
 
       const response = await fetch(`/api/employees?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch employees");
@@ -73,7 +73,7 @@ export default function EmployeeTable({
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, branchFilter, roleFilter, accessFilter]);
+  }, [searchTerm, branchFilter, roleFilter]);
 
   useEffect(() => {
     fetchEmployees();
@@ -111,10 +111,46 @@ export default function EmployeeTable({
     }
   };
 
+  const handleStatusToggle = async (employeeId: string, current: string | undefined) => {
+    const next = current === "Active" ? "Inactive" : "Active";
+    const nextAccess = next === "Active" ? "AUTHORIZED" : "UNAUTHORIZED";
+    try {
+      const response = await fetch("/api/employees", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: employeeId, Emp_Status: next, accessStatus: nextAccess }),
+      });
+      if (!response.ok) throw new Error("Failed to update status");
+      setEmployees((prev) =>
+        prev.map((emp) => emp.id === employeeId ? { ...emp, Emp_Status: next, accessStatus: nextAccess } : emp)
+      );
+    } catch (error) {
+      alert(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
+
+  const handleRebuildIds = async () => {
+    if (!confirm("Rebuild all employee IDs based on current role and branch? This will update IDs for all employees.")) return;
+    try {
+      const res = await fetch("/api/employees/rebuild-ids", { method: "POST" });
+      const data = await res.json();
+      alert(data.message || "Done");
+      fetchEmployees();
+    } catch {
+      alert("Failed to rebuild IDs");
+    }
+  };
+
+  const filteredEmployees = employees.filter((e) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "Archived") return e.accessStatus === "ARCHIVED";
+    return (e.Emp_Status || "") === statusFilter;
+  });
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Employee Management</h2>
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Employee</h2>
 
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -131,7 +167,7 @@ export default function EmployeeTable({
           onChange={(e) => setBranchFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
         >
-          <option value="all">All Branches</option>
+          <option value="all">Branch/Dept</option>
           {BRANCH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
@@ -145,21 +181,22 @@ export default function EmployeeTable({
         </select>
 
         <select
-          value={accessFilter}
-          onChange={(e) => setAccessFilter(e.target.value)}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
         >
-          <option value="all">All Access Status</option>
-          <option value="AUTHORIZED">Authorized</option>
-          <option value="UNAUTHORIZED">Unauthorized</option>
-          <option value="ARCHIVED">Archived (Resigned)</option>
+          <option value="all">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Archived">Archived (Resigned)</option>
         </select>
+
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">Loading employees...</div>
-      ) : employees.length === 0 ? (
+      ) : filteredEmployees.length === 0 ? (
         <div className="text-center py-8 text-gray-500">No employees found</div>
       ) : (
         <div className="overflow-x-auto">
@@ -179,27 +216,29 @@ export default function EmployeeTable({
                 <th className="px-2 py-3 text-left font-semibold text-gray-700 text-xs">Branch/Dept</th>
                 <th className="px-2 py-3 text-left font-semibold text-gray-700 text-xs">Start Date</th>
                 <th className="px-2 py-3 text-left font-semibold text-gray-700 text-xs">Probation</th>
+                <th className="px-2 py-3 text-center font-semibold text-gray-700 text-xs">Status</th>
                 <th className="px-2 py-3 text-center font-semibold text-gray-700 text-xs">Biometrics</th>
                 <th className="px-2 py-3 text-center font-semibold text-gray-700 text-xs">Access</th>
+                <th className="px-2 py-3 text-center font-semibold text-gray-700 text-xs">Manage</th>
               </tr>
             </thead>
             <tbody>
-              {employees.map((employee) => (
+              {filteredEmployees.map((employee) => (
                 <tr key={employee.id} className="border-b hover:bg-gray-50">
                   <td className="px-2 py-3 font-medium text-gray-900 text-xs">
                     {employee.employeeId}
                   </td>
-                  <td className="px-2 py-3 text-gray-900 text-xs">
+                  <td className="px-2 py-3 text-gray-900 text-xs uppercase">
                     {employee.fullName || `${employee.firstName ?? ""} ${employee.lastName ?? ""}`.trim() || "-"}
                   </td>
                   <td className="px-2 py-3 text-gray-600 text-xs">
                     {employee.gender === "MALE" ? "Male" : employee.gender === "FEMALE" ? "Female" : "-"}
                   </td>
-                  <td className="px-2 py-3 text-gray-600 text-xs">{employee.nickName || "-"}</td>
+                  <td className="px-2 py-3 text-gray-600 text-xs uppercase">{employee.nickName || "-"}</td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{employee.phone}</td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{employee.nric || "-"}</td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{employee.dob || "-"}</td>
-                  <td className="px-2 py-3 text-gray-600 text-xs max-w-[150px] truncate" title={employee.homeAddress}>
+                  <td className="px-2 py-3 text-gray-600 text-xs uppercase max-w-[150px] truncate" title={employee.homeAddress}>
                     {employee.homeAddress || "-"}
                   </td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{getRoleLabel(employee.role)}</td>
@@ -209,6 +248,20 @@ export default function EmployeeTable({
                   <td className="px-2 py-3 text-gray-600 text-xs">{getBranchLabel(employee.branch)}</td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{employee.startDate || "-"}</td>
                   <td className="px-2 py-3 text-gray-600 text-xs">{employee.probation || "-"}</td>
+                  <td className="px-2 py-3 text-center">
+                    <button
+                      onClick={() => handleStatusToggle(employee.id, employee.Emp_Status)}
+                      className={`px-2 py-1 rounded-full text-xs font-semibold transition-colors ${
+                        employee.Emp_Status === "Active"
+                          ? "bg-green-100 text-green-800 hover:bg-green-200"
+                          : employee.Emp_Status === "Inactive"
+                          ? "bg-red-100 text-red-800 hover:bg-red-200"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {employee.Emp_Status || "—"}
+                    </button>
+                  </td>
                   <td className="px-2 py-3 text-center">
                     {employee.biometricTemplate ? (
                       <span className="text-green-600 font-semibold text-xs">✓</span>
@@ -252,6 +305,14 @@ export default function EmployeeTable({
                       )}
                     </div>
                   </td>
+                  <td className="px-2 py-3 text-center">
+                    <a
+                      href={`/user-management?employeeId=${employee.id}`}
+                      className="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Manage
+                    </a>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -260,24 +321,35 @@ export default function EmployeeTable({
       )}
 
       {/* Summary */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600">
-          Total Employees: <span className="font-bold text-gray-900">{employees.length}</span>
-        </p>
-        <p className="text-sm text-gray-600 mt-2">
-          Authorized:{" "}
-          <span className="font-bold text-green-600">
-            {employees.filter((e) => e.accessStatus === "AUTHORIZED").length}
-          </span>{" "}
-          | Unauthorized:{" "}
-          <span className="font-bold text-red-600">
-            {employees.filter((e) => e.accessStatus === "UNAUTHORIZED").length}
-          </span>{" "}
-          | Archived:{" "}
-          <span className="font-bold text-yellow-600">
-            {employees.filter((e) => e.accessStatus === "ARCHIVED").length}
-          </span>
-        </p>
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-gray-600">
+            Total Employees: <span className="font-bold text-gray-900">{employees.length}</span>
+            {statusFilter !== "all" && (
+              <span className="ml-2 text-gray-400">(showing {filteredEmployees.length} filtered)</span>
+            )}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            Active:{" "}
+            <span className="font-bold text-green-600">
+              {employees.filter((e) => e.Emp_Status === "Active").length}
+            </span>{" "}
+            | Inactive:{" "}
+            <span className="font-bold text-red-600">
+              {employees.filter((e) => e.Emp_Status === "Inactive").length}
+            </span>{" "}
+            | Archived:{" "}
+            <span className="font-bold text-yellow-600">
+              {employees.filter((e) => e.accessStatus === "ARCHIVED").length}
+            </span>
+          </p>
+        </div>
+        <button
+          onClick={handleRebuildIds}
+          className="shrink-0 px-3 py-1.5 text-xs font-medium bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+        >
+          Rebuild IDs
+        </button>
       </div>
     </div>
   );

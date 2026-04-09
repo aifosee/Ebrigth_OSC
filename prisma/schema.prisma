@@ -32,6 +32,17 @@ model ManpowerSchedule {
   originalAuthor     String
 }
 
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  nickname  String?
+  branch    String
+  position  String?
+  createdAt DateTime @default(now())
+
+  @@unique([name, branch])
+}
+
 model BranchStaff {
   id                 Int       @id @default(autoincrement())
   name               String?
@@ -78,29 +89,18 @@ model BranchStaff {
 // Email flags ensure clock-in/out emails fire exactly once regardless of
 // how many times the scanner route is polled.
 model AttendanceLog {
-  id                  Int      @id @default(autoincrement())
-  date                String   // "YYYY-MM-DD" — used as the day key
-  empNo               String   // scanner employeeNoString
-  empName             String
-  clockInTime         String   // HH:mm:ss display string
-  clockInSerialNo     String   // scanner serialNo that triggered clock-in
-  clockInEmailSent    Boolean  @default(false)
-  clockOutTime        String?  // null until they scan out
-  clockOutSerialNo    String?  // serialNo of the clock-out scan
-  clockOutEmailSent   Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  date               String   // "YYYY-MM-DD" — used as the day key
+  empNo              String   // scanner employeeNoString
+  empName            String
+  clockInTime        String   // HH:mm:ss display string
+  clockInSerialNo    String   // scanner serialNo that triggered clock-in
+  clockInEmailSent   Boolean  @default(false)
+  clockOutTime       String?  // null until they scan out
+  clockOutSerialNo   String?  // serialNo of the clock-out scan
+  clockOutEmailSent  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([date, empNo]) // one row per person per day
-}
-
-model Employee {
-  id        Int       @id @default(autoincrement())
-  name      String
-  nickname  String?
-  branch    String
-  position  String?
-  createdAt DateTime? @default(now()) @db.Timestamp(6)
-
-  @@unique([name, branch])
 }

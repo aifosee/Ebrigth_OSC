@@ -45,16 +45,7 @@ export default function HomePage() {
       </header>
 
       <div className="flex h-[calc(100vh-100px)]">
-        <Sidebar sidebarOpen={sidebarOpen} onCollapse={() => setSidebarOpen(false)} />
-
-        {!sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="w-16 bg-white shadow-lg hover:bg-gray-50 transition-colors border-r border-gray-200 flex items-center justify-center text-blue-600 font-bold text-2xl"
-          >
-            ☰
-          </button>
-        )}
+        <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
 
         <main className="flex-1 overflow-y-auto">
           <DashboardHome />

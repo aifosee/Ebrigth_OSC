@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, Suspense } from "react";
 import UserManagement from "@/app/components/UserManagement";
 import RegistrationForm from "@/app/components/RegistrationForm";
 import Sidebar from "@/app/components/Sidebar";
@@ -111,7 +111,7 @@ export default function UserManagementPage() {
       </header>
 
       <div className="flex h-[calc(100vh-100px)]">
-        <Sidebar sidebarOpen={sidebarOpen} onCollapse={() => setSidebarOpen(false)} />
+        <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
 
         {!sidebarOpen && (
           <button
@@ -199,7 +199,9 @@ export default function UserManagementPage() {
           )}
 
           {/* User Management Table */}
-          <UserManagement key={refreshKey} userRole="SUPER_ADMIN" />
+          <Suspense fallback={<div className="p-4 text-center text-gray-500">Loading users...</div>}>
+            <UserManagement key={refreshKey} />
+          </Suspense>
         </main>
       </div>
     </div>

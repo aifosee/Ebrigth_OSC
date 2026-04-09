@@ -2,18 +2,16 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO, addDays, startOfWeek, endOfWeek } from "date-fns"; 
-import { DateRange, RangeKeyDict } from "react-date-range"; 
-import { useSession } from "next-auth/react"; // <-- 1. IMPORT SESSION
-import "react-date-range/dist/styles.css"; 
-import "react-date-range/dist/theme/default.css"; 
+import { format, parseISO, addDays, startOfWeek } from "date-fns";
+import { useSession } from "next-auth/react";
 import Sidebar from "@/app/components/Sidebar";
 
 // --- IMPORT SHARED CONSTANTS ---
 import {
-  COLUMNS, ALL_BRANCHES,
-  getTimeSlotsForDay, isAdminSlot, getEmployeeColor,
+  SHARED_EMPLOYEES, COLUMNS, ALL_BRANCHES,
+  getTimeSlotsForDay, isAdminSlot, getStaffColorByIndex,
   getWorkingDaysForBranch, isOpeningClosingSlot,
+  isManagerOnDutySlot,
 } from "@/lib/manpowerUtils";
 
 
@@ -78,28 +76,21 @@ const SummaryTable = ({ data }: { data: any[] }) => {
 
 export default function ArchiveSchedulePage() {
   const router = useRouter();
-  const { data: session } = useSession(); // <-- 2. GRAB SESSION
+  const { data: session } = useSession();
   
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]); // <-- 3. USE STATE INSTEAD OF LOCALSTORAGE
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [branchStaffData, setBranchStaffData] = useState<Record<string, string[]>>({});
   const [branchManagerData, setBranchManagerData] = useState<Record<string, string[]>>({});
   
   // --- FILTER STATES ---
   const [filterBranch, setFilterBranch] = useState<string>("");
-  const [filterDate, setFilterDate] = useState<string>(""); 
-  
-  // --- CALENDAR POPOVER STATES ---
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [shownDate, setShownDate] = useState(new Date());
-  const [isDateFiltered, setIsDateFiltered] = useState(false);
-  const [range, setRange] = useState([{
-    startDate: new Date(),
-    endDate: new Date(),
-    key: "selection",
-  }]);
+  const [filterYear, setFilterYear] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("");
+  const [filterQuick, setFilterQuick] = useState<string>("");
 
   // --- FETCH DATA FROM POSTGRESQL ---
   useEffect(() => {
@@ -166,19 +157,19 @@ export default function ArchiveSchedulePage() {
 
   // --- APPLY FILTERS & ROLE SECURITY TO THE LIST ---
   const filteredHistory = useMemo(() => {
+    const today = new Date();
+    const thisMonday = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const lastMonday = format(startOfWeek(addDays(today, -7), { weekStartsOn: 1 }), "yyyy-MM-dd");
     return history.filter((record: any) => {
-      // 1. SECURITY FILTER: Branch Managers ONLY see their own branch!
-      if (userRole === "BRANCH_MANAGER" && record.branch !== userBranch) {
-        return false;
-      }
-
-      // 2. Standard Filters
-      const matchBranch = filterBranch ? record.branch === filterBranch : true;
-      const matchWeek = filterDate ? record.startDate === filterDate : true;
-      
-      return matchBranch && matchWeek;
+      if (userRole === "BRANCH_MANAGER" && record.branch !== userBranch) return false;
+      if (filterBranch && record.branch !== filterBranch) return false;
+      if (!filterQuick && filterYear && format(parseISO(record.startDate), "yyyy") !== filterYear) return false;
+      if (!filterQuick && filterMonth && format(parseISO(record.startDate), "yyyy-MM") !== `${filterYear || format(today, "yyyy")}-${filterMonth}`) return false;
+      if (filterQuick === "this-week" && record.startDate !== thisMonday) return false;
+      if (filterQuick === "last-week" && record.startDate !== lastMonday) return false;
+      return true;
     });
-  }, [history, filterBranch, filterDate, userRole, userBranch]);
+  }, [history, filterBranch, filterYear, filterMonth, filterQuick, userRole, userBranch]);
 
   // --- BULLETPROOF DATA SYNC ---
   const validData = useMemo(() => {
@@ -193,7 +184,7 @@ export default function ArchiveSchedulePage() {
   const calculateHoursForData = () => {
     if (!selectedRecord) return [];
     
-    const managerNames = new Set(branchManagerData[selectedRecord.branch] || []);
+    const managerNames = new Set(Object.values(branchManagerData).flat());
     const allBranchStaff = (branchStaffData[selectedRecord.branch] || []).filter(n => !managerNames.has(n));
     const selectedInTable = (Object.values(validData).filter(val => val !== "" && val !== "None") as string[]).filter(n => !managerNames.has(n));
     const uniqueEmployeesToTrack: string[] = Array.from(new Set([...allBranchStaff, ...selectedInTable]));
@@ -215,7 +206,6 @@ export default function ArchiveSchedulePage() {
           COLUMNS.forEach((col) => {
             if (validData[`${day}-${slot}-${col.id}`] === emp) {
               workedThatDay = true;
-              
               if (col.type === "coach") {
                   const slotDuration = isAdminSlot(slot, selectedRecord.branch) ? 0.25 : 1.25;
                   coachingHoursForDay += slotDuration;
@@ -248,7 +238,7 @@ export default function ArchiveSchedulePage() {
 
     return (
       <div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden">
-        <Sidebar sidebarOpen={sidebarOpen} onCollapse={() => setSidebarOpen(false)} />
+        <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
         
         <main className="flex-1 h-screen flex flex-col overflow-hidden" style={{ zoom: 0.9 }}>
           
@@ -256,19 +246,6 @@ export default function ArchiveSchedulePage() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-6 mb-6">
               <div className="flex items-center gap-6">
                 
-                {/* HAMBURGER BUTTON TO OPEN SIDEBAR */}
-                {!sidebarOpen && (
-                  <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="p-3 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl transition-colors shadow-sm flex items-center justify-center"
-                    title="Open Sidebar"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </button>
-                )}
-
                 <button
                   onClick={() => setSelectedRecord(null)}
                   className="bg-slate-200 text-slate-700 hover:bg-slate-300 px-6 py-3 rounded-xl font-bold uppercase transition-colors flex items-center gap-2 shadow-sm"
@@ -276,9 +253,8 @@ export default function ArchiveSchedulePage() {
                   ← Back to List
                 </button>
                 <div className="h-8 w-px bg-slate-300"></div>
-                <h1 className="text-2xl font-black uppercase tracking-wide text-slate-800 leading-none m-0 flex items-center gap-4">
+                <h1 className="text-lg font-black uppercase tracking-wide text-slate-800 leading-none m-0 flex items-center gap-4">
                   <span>Archived: {selectedRecord.branch}</span>
-                  
                   {selectedRecord.startDate && selectedRecord.endDate && (
                     <span className="text-sm bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg font-bold tracking-widest uppercase">
                       {formatDateString(selectedRecord.startDate)} - {formatDateString(selectedRecord.endDate)}
@@ -293,10 +269,32 @@ export default function ArchiveSchedulePage() {
           </div>
 
           <div className="flex-1 overflow-y-auto w-full mx-auto px-4 md:px-6 pb-20">
-            <div className="space-y-8">
-              {getWorkingDaysForBranch(selectedRecord.branch).map((day) => {
-                const slots = getTimeSlotsForDay(day, selectedRecord.branch);
+            <div className="space-y-6">
 
+              {/* DAY TAB BUTTONS */}
+              <div className="flex gap-2 flex-wrap">
+                {getWorkingDaysForBranch(selectedRecord.branch).map((day) => {
+                  const isActive = selectedDay === day;
+                  const validData = selectedRecord.selections || {};
+                  const hasData = Object.keys(validData).some(k => k.startsWith(`${day}-`));
+                  return (
+                    <button key={day} onClick={() => setSelectedDay(day)}
+                      className={`relative px-6 py-3 rounded-xl font-black uppercase text-sm tracking-wide transition-all shadow-sm ${
+                        isActive ? "bg-[#2D3F50] text-white shadow-lg scale-105"
+                        : hasData ? "bg-slate-100 text-slate-700 border-2 border-slate-400 hover:bg-slate-200"
+                        : "bg-white text-slate-400 border-2 border-slate-200 hover:bg-slate-50"
+                      }`}>
+                      {day.slice(0, 3)}
+                      {hasData && <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${isActive ? "bg-green-400" : "bg-slate-500"}`} />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedDay && (() => {
+                const day = selectedDay;
+                const slots = getTimeSlotsForDay(day, selectedRecord.branch);
+                const branchStaff = Array.from(new Set([...SHARED_EMPLOYEES, ...(branchStaffData[selectedRecord.branch] || [])]));
                 return (
                   <div key={day} className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                     <div className="bg-slate-500 p-3 border-b flex flex-col items-center justify-center">
@@ -323,39 +321,64 @@ export default function ArchiveSchedulePage() {
                         <tbody>
                             {slots.map((slot, slotIndex) => {
                               const isOpenClose = isOpeningClosingSlot(slot, selectedRecord.branch);
-                              return (
-                            <tr key={slot} className={`group ${isOpenClose ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                                <td className={`p-3 border-r border-b border-slate-200 font-bold text-slate-900 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${isOpenClose ? 'bg-blue-100' : 'bg-slate-50 group-hover:bg-slate-100'}`}>
-                                    {slot}
-                                </td>
-                                {slotIndex === 0 && (
-                                  <td rowSpan={slots.length} className="p-3 border-r border-b border-slate-200 text-center font-bold bg-emerald-50 align-middle">
-                                    {displayNotes[`${day}-MANAGER`] || "-"}
-                                  </td>
-                                )}
-                                {isOpenClose ? (
-                                  <td colSpan={COLUMNS.length + 1} className="p-3 border-b border-slate-200 text-center">
-                                    <span className="text-xs font-black text-blue-600 uppercase tracking-widest">All Staff — Executive ({slotIndex === 0 ? "Opening" : "Closing"})</span>
-                                  </td>
-                                ) : (
-                                  <>
-                                    {COLUMNS.map(col => {
-                                      const name = validData[`${day}-${slot}-${col.id}`];
-                                      const displayValue = name && name !== "None" ? name : "-";
-                                      const bgColor = name && name !== "None" ? getEmployeeColor(name) : (col.type === 'exec' ? 'bg-slate-50 text-slate-300' : 'bg-white text-slate-300');
+                              // --- KEY FIX: check if manager dropdown applies per slot ---
+                              const showManager = isManagerOnDutySlot(slot, selectedRecord.branch, day);
+                              
+                              // Support both old format (notes[day-MANAGER]) and new format (selections[day-slot-MANAGER])
+                              const managerName =
+                                validData[`${day}-${slot}-MANAGER`] ||           // new format (post-fix)
+                                displayNotes[`${day}-MANAGER`] ||                 // old format (pre-fix, legacy records)
+                                "";
 
-                                      return (
-                                          <td key={col.id} className={`p-3 border-r border-b border-slate-200 text-center font-bold transition-colors ${bgColor}`}>
-                                              {displayValue}
-                                          </td>
-                                      );
-                                    })}
-                                    <td className="p-3 border-b border-slate-200 text-slate-500 italic bg-white max-w-xs truncate">
-                                        {displayNotes[`${day}-${slot}-notes`] || "-"}
+                              return (
+                                <tr key={slot} className={`group ${isOpenClose ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                                  <td className={`p-3 border-r border-b border-slate-200 font-bold text-slate-900 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${isOpenClose ? 'bg-blue-100' : 'bg-slate-50 group-hover:bg-slate-100'}`}>
+                                      {slot}
+                                  </td>
+
+                                  {/* ---- MANAGER ON DUTY CELL (fixed: no rowSpan, per-slot logic) ---- */}
+                                  {!isOpenClose && (
+                                    <td className="p-2 border-r border-b border-slate-200 text-center font-bold bg-emerald-50 w-[180px]">
+                                      {showManager ? (
+                                        // Show manager name for slots where manager is on duty
+                                        managerName ? (
+                                          <span className={`inline-block w-full px-2 py-1.5 rounded text-xs font-bold ${getStaffColorByIndex(managerName, branchStaff)}`}>
+                                            {managerName}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-300 font-bold">-</span>
+                                        )
+                                      ) : (
+                                        // Empty placeholder for slots after manager's shift (e.g. 08:30PM onwards)
+                                        <div className="w-full h-[28px] rounded bg-emerald-100/50 border border-dashed border-emerald-200 flex items-center justify-center">
+                                          <span className="text-[9px] text-emerald-300 font-bold uppercase tracking-wider">—</span>
+                                        </div>
+                                      )}
                                     </td>
-                                  </>
-                                )}
-                            </tr>
+                                  )}
+
+                                  {isOpenClose ? (
+                                    <td colSpan={COLUMNS.length + 1} className="p-3 border-b border-slate-200 text-center">
+                                      <span className="text-xs font-black text-blue-600 uppercase tracking-widest">All Staff — Executive ({slotIndex === 0 ? "Opening" : "Closing"})</span>
+                                    </td>
+                                  ) : (
+                                    <>
+                                      {COLUMNS.map(col => {
+                                        const name = validData[`${day}-${slot}-${col.id}`];
+                                        const displayValue = name && name !== "None" ? name : "-";
+                                        const bgColor = name && name !== "None" ? getStaffColorByIndex(name, branchStaff) : (col.type === 'exec' ? 'bg-slate-50 text-slate-300' : 'bg-white text-slate-300');
+                                        return (
+                                            <td key={col.id} className={`p-3 border-r border-b border-slate-200 text-center font-bold transition-colors ${bgColor}`}>
+                                                {displayValue}
+                                            </td>
+                                        );
+                                      })}
+                                      <td className="p-3 border-b border-slate-200 text-slate-500 italic bg-white max-w-xs truncate">
+                                          {displayNotes[`${day}-${slot}-notes`] || "-"}
+                                      </td>
+                                    </>
+                                  )}
+                                </tr>
                               );
                             })}
                         </tbody>
@@ -363,7 +386,7 @@ export default function ArchiveSchedulePage() {
                     </div>
                   </div>
                 );
-              })}
+              })()}
 
               <SummaryTable data={calculateHoursForData()} />
             </div>
@@ -377,163 +400,126 @@ export default function ArchiveSchedulePage() {
   return (
     <>
       <div className="flex h-screen bg-slate-50 overflow-hidden">
-          <Sidebar sidebarOpen={sidebarOpen} onCollapse={() => setSidebarOpen(false)} />
+          <Sidebar sidebarOpen={sidebarOpen} onToggle={() => setSidebarOpen(p => !p)} />
           
           <main className="flex-1 h-screen flex flex-col overflow-hidden" style={{ zoom: 0.9 }}>
               
-              <div className="shrink-0 w-full max-w-6xl mx-auto px-4 md:px-6 pt-4 md:pt-6 z-50 bg-slate-50">
-                  {/* LIST TOP BAR */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6 mb-6">
+              <div className="shrink-0 w-full mx-auto px-4 md:px-6 pt-4 md:pt-6 z-50 bg-slate-50">
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 mb-6">
                     
-                    {/* HAMBURGER BUTTON TO OPEN SIDEBAR */}
-                    {!sidebarOpen && (
-                      <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="p-3 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl transition-colors shadow-sm flex items-center justify-center"
-                        title="Open Sidebar"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                      </button>
-                    )}
 
                     <button
                       onClick={() => router.push('/manpower-schedule')}
-                      className="bg-blue-500 text-white px-6 py-3 rounded-xl flex items-center gap-3 shadow-md hover:bg-blue-600 transition-colors"
+                      className="bg-blue-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-md hover:bg-blue-600 transition-colors"
                     >
-                      <span className="text-2xl">👥</span>
-                      <span className="text-lg font-black uppercase tracking-wide leading-none">HRMS</span>
+                      <span className="text-xl">👥</span>
+                      <span className="text-base font-black uppercase tracking-wide leading-none">HRMS</span>
                     </button>
                     
                     <div className="h-8 w-px bg-slate-300"></div>
                     
-                    <h1 className="text-2xl font-black uppercase tracking-wide text-slate-800 leading-none m-0">
+                    <h1 className="text-lg font-black uppercase tracking-wide text-slate-800 leading-none m-0">
                       Archive Overview
                     </h1>
                   </div>
 
                   {/* FILTER CONTROLS */}
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 mb-6 relative">
-                    
-                    {/* ONLY SHOW BRANCH FILTER IF USER IS NOT A BRANCH MANAGER */}
-                    {userRole !== "BRANCH_MANAGER" && (
-                      <div className="flex-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Filter by Branch</label>
-                        <select 
-                          value={filterBranch} 
-                          onChange={(e) => setFilterBranch(e.target.value)} 
-                          className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
-                        >
-                          <option value="">All Branches</option>
-                          {ALL_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-3 mb-6">
+                    <div className="flex flex-wrap gap-3">
+                      {userRole !== "BRANCH_MANAGER" && (
+                        <div className="flex-1 min-w-[180px]">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Branch</label>
+                          <select value={filterBranch} onChange={(e) => setFilterBranch(e.target.value)}
+                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                            <option value="">All Branches</option>
+                            {ALL_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Year</label>
+                        <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterQuick(""); }}
+                          className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                          <option value="">All Years</option>
+                          {Array.from(new Set(history.map(r => format(parseISO(r.startDate), "yyyy")))).sort((a,b) => parseInt(b)-parseInt(a)).map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
                         </select>
                       </div>
-                    )}
-                    
-                    <div className="flex-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Filter by Week</label>
-                      <div 
-                        onClick={() => setShowCalendar(true)}
-                        className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 cursor-pointer flex justify-between items-center transition-colors hover:border-blue-500"
-                      >
-                        <span>
-                          {isDateFiltered 
-                            ? `${format(range[0].startDate, "dd MMM yyyy")} - ${format(range[0].endDate, "dd MMM yyyy")}` 
-                            : "All Weeks"}
-                        </span>
-                        <span>📅</span>
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Month</label>
+                        <select value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setFilterQuick(""); }}
+                          className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                          <option value="">All Months</option>
+                          {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => (
+                            <option key={m} value={m}>{["January","February","March","April","May","June","July","August","September","October","November","December"][i]}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                    
-                    {(filterBranch || isDateFiltered) && (
-                      <div className="flex items-end">
-                        <button 
-                          onClick={() => { 
-                            setFilterBranch(""); 
-                            setFilterDate(""); 
-                            setIsDateFiltered(false);
-                          }}
-                          className="h-[50px] px-6 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-black uppercase tracking-widest text-xs transition-colors"
-                        >
-                          Clear
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Quick:</span>
+                      {["this-week","last-week"].map(q => (
+                        <button key={q} onClick={() => setFilterQuick(filterQuick === q ? "" : q)}
+                          className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition-colors ${filterQuick === q ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                          {q === "this-week" ? "This Week" : "Last Week"}
                         </button>
-                      </div>
-                    )}
+                      ))}
+                      {(filterBranch || filterYear || filterMonth || filterQuick) && (
+                        <button onClick={() => { setFilterBranch(""); setFilterYear(""); setFilterMonth(""); setFilterQuick(""); }}
+                          className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wide bg-red-50 text-red-600 hover:bg-red-100 transition-colors ml-auto">
+                          Clear All
+                        </button>
+                      )}
+                    </div>
                   </div>
               </div>
 
-              {/* SCROLLING GRID AREA */}
-              <div className="flex-1 overflow-y-auto w-full max-w-6xl mx-auto px-4 md:px-6 pb-12">
+              {/* RECORD LIST AREA */}
+              <div className="flex-1 overflow-y-auto w-full mx-auto px-4 md:px-6 pb-12">
                   {isLoading ? (
                     <div className="flex justify-center items-center h-40">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                     </div>
+                  ) : !filterBranch && !filterYear && !filterMonth && !filterQuick ? (
+                    <div className="flex flex-col items-center justify-center h-[50vh] gap-4 text-center">
+                      <div className="text-6xl">🔍</div>
+                      <p className="text-slate-700 font-black text-xl uppercase tracking-widest">Select a filter to view records</p>
+                      <p className="text-slate-400 font-bold text-sm">Use Branch, Year, Month or the quick buttons above</p>
+                    </div>
                   ) : filteredHistory.length === 0 ? (
-                      <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-slate-300 text-center shadow-sm">
-                          <p className="text-slate-500 font-bold text-lg uppercase tracking-widest">No archived records found matching filters.</p>
-                      </div>
+                    <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-slate-300 text-center shadow-sm">
+                      <p className="text-slate-500 font-bold text-lg uppercase tracking-widest">No archived records found matching filters.</p>
+                    </div>
                   ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {filteredHistory.map((record: any) => (
-                              <div key={record.id} onClick={() => setSelectedRecord(record)} className="bg-white p-8 rounded-3xl shadow-md border-4 border-transparent hover:border-blue-500 cursor-pointer transition-all flex flex-col justify-center">
-                                  <h3 className="font-black text-2xl uppercase text-slate-800 mb-2">{record.branch}</h3>
-                                  <div className="inline-flex items-center gap-2">
-                                    <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-md text-xs font-bold tracking-widest uppercase shadow-sm">
-                                      Week Of: {formatDateString(record.startDate)}
-                                    </span>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-black uppercase text-slate-400 mb-3">{filteredHistory.length} record{filteredHistory.length !== 1 ? "s" : ""} found</p>
+                      {filteredHistory.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).map(record => (
+                        <button
+                          key={record.id}
+                          onClick={() => { setSelectedRecord(record); const days = getWorkingDaysForBranch(record.branch); if (days.length > 0) setSelectedDay(days[0]); }}
+                          className="w-full text-left bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl px-5 py-4 flex items-center justify-between transition-colors shadow-sm"
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-black text-sm text-slate-800 uppercase tracking-wide">{record.branch}</span>
+                            <span className="text-xs text-slate-500 font-bold">
+                              {format(parseISO(record.startDate), "dd MMM yyyy")} – {format(parseISO(record.endDate), "dd MMM yyyy")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${record.status === "Finalized" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                              {record.status}
+                            </span>
+                            <span className="text-slate-300 text-lg">›</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   )}
               </div>
           </main>
       </div>
 
-      {/* --- CENTERED MODAL FOR CALENDAR --- */}
-      {showCalendar && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100 flex flex-col max-w-md w-full relative">
-            <h2 className="text-xl font-black text-slate-800 mb-4 uppercase tracking-tight text-center">Select a Week</h2>
-            
-            <div className="flex justify-center w-full overflow-hidden mb-4">
-              <DateRange
-                onChange={(item: RangeKeyDict) => {
-                  const selection = item.selection;
-                  if (selection.startDate) {
-                    const start = startOfWeek(selection.startDate, { weekStartsOn: 1 });
-                    const end = endOfWeek(selection.startDate, { weekStartsOn: 1 });
-                    
-                    setRange([{ startDate: start, endDate: end, key: "selection" }]);
-                    setIsDateFiltered(true);
-                    
-                    setFilterDate(format(start, "yyyy-MM-dd")); 
-                    
-                    setTimeout(() => setShowCalendar(false), 250);
-                  }
-                }}
-                shownDate={shownDate}
-                onShownDateChange={(date) => setShownDate(date)}
-                moveRangeOnFirstSelection={true}
-                ranges={range}
-                rangeColors={["#3b82f6"]}
-                months={1}
-                direction="horizontal"
-                dateDisplayFormat="dd MMM yyyy"
-                className="border-none"
-              />
-            </div>
-
-            <button 
-              onClick={() => setShowCalendar(false)} 
-              className="w-full py-4 bg-slate-200 text-slate-700 font-black rounded-xl hover:bg-slate-300 uppercase tracking-widest text-sm transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }
